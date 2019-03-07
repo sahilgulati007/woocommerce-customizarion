@@ -12,4 +12,4 @@ Plugin created  to customize woocommerce feature like
 <li>Adding custom product type in woocommerce</li>
 </ul>
 
-#Sahil Gulati Surat
+Sahil Gulati Surat
