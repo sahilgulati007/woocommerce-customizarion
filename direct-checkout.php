@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WooCommerce customization
  * Plugin URI: http://yourdomain.com/
- * Description: Custom login form register code - [wc_reg_form_sg] login- [wc_login_form_sg] .
+ * Description: woocommerce custommization .
  * Version: 1.0.0
  * Author: Sahil Gulati
  * Author URI: http://yourdomain.com/
