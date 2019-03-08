@@ -403,4 +403,230 @@ function demo_product_front () {
     }
 }
 
+// not working divelery date
+// -------------------------------
+// 1. Display Checkout Calendar if Shipping Selected
 
+add_action( 'woocommerce_review_order_before_payment', 'bbloomer_echo_acf_date_picker' );
+
+function bbloomer_echo_acf_date_picker( $checkout ) {
+
+    echo '<div id="show-if-shipping" style="display:none"><h3>Delivery Date</h3>';
+
+    woocommerce_form_field( 'delivery_date', array(
+        'type'          => 'text',
+        'class'         => array('form-row-wide'),
+        'id'            => 'datepicker',
+        'required'      => true,
+        'label'         => __('Select Delivery Date'),
+        'placeholder'       => __('Click to open calendar'),
+    ));
+
+    echo '</div>';
+
+}
+
+add_action( 'woocommerce_after_checkout_form', 'bbloomer_show_hide_calendar' );
+
+function bbloomer_show_hide_calendar( $available_gateways ) {
+
+    ?>
+
+    <script type="text/javascript">
+
+        function show_calendar( val ) {
+            if ( val.match("^flat_rate") || val.match("^free_shipping") ) {
+                jQuery('#show-if-shipping').fadeIn();
+            } else {
+                jQuery('#show-if-shipping').fadeOut();
+            }
+        }
+
+        jQuery(document).ajaxComplete(function() {
+            var val = jQuery('input[name^="shipping_method"]:checked').val();
+            show_calendar( val );
+        });
+
+    </script>
+
+    <?php
+
+}
+
+add_action( 'woocommerce_checkout_process', 'bbloomer_validate_new_checkout_fields' );
+
+function bbloomer_validate_new_checkout_fields() {
+
+    if ( isset( $_POST['delivery_date'] ) && empty( $_POST['delivery_date'] ) ) wc_add_notice( __( 'Please select the Delivery Date' ), 'error' );
+
+}
+
+// -------------------------------
+// 2. Load JQuery Datepicker
+
+add_action( 'woocommerce_after_checkout_form', 'bbloomer_enable_datepicker', 10 );
+
+function bbloomer_enable_datepicker() {
+
+    ?>
+
+    <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+
+    <?php
+
+}
+
+// -------------------------------
+// 3. Load Calendar Dates
+
+add_action( 'woocommerce_after_checkout_form', 'bbloomer_load_calendar_dates', 20 );
+
+function bbloomer_load_calendar_dates( $available_gateways ) {
+
+    ?>
+
+    <script type="text/javascript">
+
+        jQuery(document).ready(function($) {
+
+            $('#datepicker').click(function() {
+
+                $('#datepicker').datepicker({
+                    dateFormat: 'dd-mm-yy',
+                    maxDate: "+2m",
+                    minDate: 1,
+                }).datepicker( "show" );
+
+            });
+
+        });
+
+    </script>
+
+    <?php
+
+}
+
+// -------------------------------
+// 4. Save & show date as order meta
+
+add_action( 'woocommerce_checkout_update_order_meta', 'bbloomer_save_date_weight_order' );
+
+function bbloomer_save_date_weight_order( $order_id ) {
+
+    global $woocommerce;
+
+    if ( $_POST['delivery_date'] ) update_post_meta( $order_id, '_delivery_date', esc_attr( $_POST['delivery_date'] ) );
+
+}
+
+add_action( 'woocommerce_admin_order_data_after_billing_address', 'bbloomer_delivery_weight_display_admin_order_meta' );
+
+function bbloomer_delivery_weight_display_admin_order_meta( $order ) {
+
+    echo '<p><strong>Delivery Date:</strong> ' . get_post_meta( $order->get_id(), '_delivery_date', true ) . '</p>';
+
+}
+
+//displaying sale prices in detail
+add_filter( 'woocommerce_get_price_html', 'bbloomer_simple_product_price_format', 10, 2 );
+
+function bbloomer_simple_product_price_format( $price, $product ) {
+
+    if ( $product->is_on_sale() && $product->is_type('simple') ) {
+        $price = sprintf( __( '<div class="was-now-save"><div class="was">WAS %1$s</div><div class="now">NOW %2$s</div><div class="save">SAVE %3$s</div></div>', 'woocommerce' ), wc_price ( $product->get_regular_price() ), wc_price( $product->get_sale_price() ), wc_price( $product->get_regular_price() - $product->get_sale_price() )  );
+    }
+
+    return $price;
+}
+
+// custom badge on single product page and display idf its elected in back end
+// -----------------------------------------
+// 1. Add new checkbox to product edit page (General tab)
+
+add_action( 'woocommerce_product_options_general_product_data', 'bbloomer_add_badge_checkbox_to_products' );
+
+function bbloomer_add_badge_checkbox_to_products() {
+    woocommerce_wp_checkbox( array(
+            'id' => 'custom_badge',
+            'class' => '',
+            'label' => 'Show Custom Badge'
+        )
+    );
+}
+
+// -----------------------------------------
+// 2. Save checkbox via custom field
+
+add_action( 'save_post', 'bbloomer_save_badge_checkbox_to_post_meta' );
+
+function bbloomer_save_badge_checkbox_to_post_meta( $product_id ) {
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
+        return;
+    if ( isset( $_POST['custom_badge'] ) ) {
+        update_post_meta( $product_id, 'custom_badge', $_POST['custom_badge'] );
+    } else delete_post_meta( $product_id, 'custom_badge' );
+}
+
+// -----------------------------------------
+// 3. Display badge @ single product page if checkbox checked
+
+add_action( 'woocommerce_single_product_summary', 'bbloomer_display_badge_if_checkbox', 6 );
+
+function bbloomer_display_badge_if_checkbox() {
+    global $product;
+    if ( get_post_meta( $product->get_id(), 'custom_badge', true ) ) {
+        echo '
+<div class="woocommerce-message">CUSTOM BADGE!</div>
+ 
+';
+    }
+}
+
+// custom filed ech single in variation
+// -----------------------------------------
+// 1. Add custom field input @ Product Data > Variations > Single Variation
+
+add_action( 'woocommerce_variation_options_pricing', 'bbloomer_add_custom_field_to_variations', 10, 3 );
+
+function bbloomer_add_custom_field_to_variations( $loop, $variation_data, $variation ) {
+    woocommerce_wp_text_input( array(
+            'id' => 'custom_field[' . $loop . ']',
+            'class' => 'short',
+            'label' => __( 'Custom Field', 'woocommerce' ),
+            'value' => get_post_meta( $variation->ID, 'custom_field', true )
+        )
+    );
+}
+
+// -----------------------------------------
+// 2. Save custom field on product variation save
+
+add_action( 'woocommerce_save_product_variation', 'bbloomer_save_custom_field_variations', 10, 2 );
+
+function bbloomer_save_custom_field_variations( $variation_id, $i ) {
+    $custom_field = $_POST['custom_field'][$i];
+    if ( ! empty( $custom_field ) ) {
+        update_post_meta( $variation_id, 'custom_field', esc_attr( $custom_field ) );
+    } else delete_post_meta( $variation_id, 'custom_field' );
+}
+
+// -----------------------------------------
+// 3. Store custom field value into variation data
+
+add_filter( 'woocommerce_available_variation', 'bbloomer_add_custom_field_variation_data' );
+
+function bbloomer_add_custom_field_variation_data( $variations ) {
+    $variations['custom_field'] = '<div class="woocommerce_custom_field">Custom Field: <span>' . get_post_meta( $variations[ 'variation_id' ], 'custom_field', true ) . '</span></div>';
+    return $variations;
+}
+
+//apply coupon code
+add_action( 'woocommerce_before_cart', 'bbloomer_apply_coupon' );
+
+function bbloomer_apply_coupon() {
+    $coupon_code = 'freeweek';
+    if ( WC()->cart->has_discount( $coupon_code ) ) return;
+    WC()->cart->add_discount( $coupon_code );
+    wc_print_notices();
+}
